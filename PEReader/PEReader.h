@@ -13,23 +13,35 @@ using std::string;
 OPENFILENAME ofn;
 char szFile[260];
 
-const string s_MZ = "MZ";
-const string s_DOStitle = "DOS title:";
-const string s_DOSe_magic = "e_magic = ";
-const string s_DOSe_lfanew = "e_lfanew = ";
-const string s_PEtitle = "PE title:";
-const string s_PESignature = "Signature = ";
+const string sMZ = "MZ";
+const string sDOSHEADER = "DOS header:";
+const string sDOSE_MAGIC = "e_magic = ";
+const string sDOSE_LFANEW = "e_lfanew = ";
+const string sDOSSTUB = "DOS stub:";
+const string sPEHEADER = "PE header:";
+const string sPESIGNATURE = "Signature = ";
 
+#define IDC_OPENDOSSTUB			200
+
+HWND hPEFileName;
 HWND hPEStruct;
-HTREEITEM htiDOStitle;
+HTREEITEM htiDOS;
 HTREEITEM htiDOSe_magic;
 HTREEITEM htiDOSe_lfanew;
-HTREEITEM htiPEtitle;
+HTREEITEM htiDOSstub;
+HTREEITEM htiPE;
 HTREEITEM htiPESignature;
 
 void vCreateMenu(HWND hwnd);
 HANDLE hOpenPEFile(HWND hwnd);
-HTREEITEM AddItemToTree(HWND hwndTV, string lpszItem, HTREEITEM hParent);
-HTREEITEM vGetDataFromPEFile(HANDLE PEFile, BOOL ReadFromCurrentPose, LONG lDistanceToMove, DWORD nNumberOfBytesToRead, HWND hwndTV, string label, HTREEITEM hParent);
-HTREEITEM vGetLONGFromPEFile(HANDLE PEFile, BOOL tohex, BOOL ReadFromCurrentPose, LONG lDistanceToMove, HWND hwndTV, string label, HTREEITEM hParent, BOOL usebuffer = false, LONG* Buffer = NULL);
-HTREEITEM vGetHexWORDFromPEFile(HANDLE PEFile, BOOL ReadFromCurrentPose, LONG lDistanceToMove, HWND hwndTV, string label, HTREEITEM hParent, BOOL usebuffer = false, char* Buffer = NULL);
+HTREEITEM AddItemToTree(HWND hwndTV, string sItem, HTREEITEM hParent, BOOL bIncorrectElement = FALSE);
+
+LONG GetLONGFromPEFile(HANDLE hPEFile, BOOL ReadFromCurrentPose = TRUE, LONG lDistanceToMove = 0, PLONG lpDistanceToMoveHigh = NULL);
+string GetStringFromLONG(LONG lData, BOOL bToHex = FALSE);
+DWORD GetDWORDFromPEFile(HANDLE hPEFile, BOOL bReadFromCurrentPose = TRUE, LONG lDistanceToMove = 0, PLONG lpDistanceToMoveHigh = NULL);
+string GetStringFromDWORD(DWORD lData, BOOL bToHex = FALSE);
+string GetUTF8DWORDFromPEFile(HANDLE hPEFile, BOOL ReadFromCurrentPose = TRUE, LONG lDistanceToMove = 0, PLONG lpDistanceToMoveHigh = NULL);
+string GetUTF8WORDFromPEFile(HANDLE hPEFile, BOOL ReadFromCurrentPose = TRUE, LONG lDistanceToMove = 0, PLONG lpDistanceToMoveHigh = NULL);
+//HTREEITEM GetDataFromPEFile(HANDLE hPEFile, BOOL bReadFromCurrentPose, LONG lDistanceToMove, DWORD nNumberOfBytesToRead, HWND hwndTV, string sLabel, HTREEITEM hParent);
+//HTREEITEM GetLONGFromPEFile(HANDLE hPEFile, BOOL bToHex, BOOL ReadFromCurrentPose, LONG lDistanceToMove, HWND hwndTV, string sLabel, HTREEITEM hParent, BOOL bUseBuffer = FALSE, LONG* plBuffer = nullptr);
+//HTREEITEM GetHexWORDFromPEFile(HANDLE hPEFile, BOOL bReadFromCurrentPose, LONG lDistanceToMove, HWND hwndTV, string sLabel, HTREEITEM hParent, BOOL bUseBuffer = FALSE, char* psBuffer = nullptr);

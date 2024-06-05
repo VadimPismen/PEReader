@@ -128,18 +128,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_CREATE:
     {
         vCreateMenu(hWnd);
+        hPEFileName = CreateWindowEx(0, "STATIC", "", WS_CHILD | WS_VISIBLE, 5, 0, 500, 20, hWnd, 0, hInst, NULL);
         hPEStruct = CreateWindowEx(0,
             WC_TREEVIEW,
             "Tree View",
             WS_VISIBLE | WS_CHILD | TVS_HASLINES | TVS_HASBUTTONS | TVS_LINESATROOT,
-            CW_USEDEFAULT,
-            CW_USEDEFAULT,
+            5,
+            20,
             400,
             400,
             hWnd,
             NULL,
             hInst,
             NULL);
+ 
     }
         break;
     case WM_COMMAND:
@@ -153,25 +155,37 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 //    break;
                 case IDM_OPENFILE:
                 {
-                    HANDLE PEFile = hOpenPEFile(hWnd);
-                    if (PEFile) {
-                        char checkMZ[3] = "";
-                        ReadFile(PEFile, checkMZ, 2, NULL, NULL);
-                        if (checkMZ != s_MZ) {
+                    HANDLE hPEFile = hOpenPEFile(hWnd);
+                    if (hPEFile) {
+                        string sCheckMZ = GetUTF8WORDFromPEFile(hPEFile);
+                        //ReadFile(PEFile, checkMZ, 2, NULL, NULL);
+                        if (sCheckMZ != sMZ) {
                             MessageBox(NULL, "Это не PE файл!", "Предупреждение", MB_ICONWARNING);
                             break;
                         }
                         TreeView_DeleteAllItems(hPEStruct);
-                        htiDOStitle = AddItemToTree(hPEStruct, s_DOStitle, NULL);
-                        htiDOSe_magic = AddItemToTree(hPEStruct, s_DOSe_magic + checkMZ, htiDOStitle);
-                        LONG addressofPE;
-                        htiDOSe_lfanew = vGetLONGFromPEFile(PEFile, true, false, 0x3C, hPEStruct, s_DOSe_lfanew, htiDOStitle, true, &addressofPE);
-                        htiPEtitle = AddItemToTree(hPEStruct, s_PEtitle, NULL);
-                        char pe[3];
-                        htiPESignature = vGetHexWORDFromPEFile(PEFile, false, addressofPE, hPEStruct, s_PESignature, htiPEtitle, true, pe);
-                        TreeView_Expand(hPEStruct, htiDOStitle, TVE_EXPAND);
-                        TreeView_Expand(hPEStruct, htiPEtitle, TVE_EXPAND);
-                        CloseHandle(PEFile);
+                        SetWindowTextA(hPEFileName, ofn.lpstrFile);
+                        htiDOS = AddItemToTree(hPEStruct, sDOSHEADER, NULL);
+                        htiDOSe_magic = AddItemToTree(hPEStruct, sDOSE_MAGIC + sCheckMZ, htiDOS);
+                        //htiDOSstub = AddItemToTree(hPEStruct, sDOSSTUB, NULL);
+
+                        LONG lAddressOfPE = GetLONGFromPEFile(hPEFile, FALSE, 0x3C);
+                        string sHexAddressOfPE = GetStringFromLONG(lAddressOfPE, TRUE);
+                        string sAddressOfPE = GetStringFromLONG(lAddressOfPE);
+                        htiDOSe_lfanew = AddItemToTree(hPEStruct, sDOSE_LFANEW + sHexAddressOfPE + " (" + sAddressOfPE + ")", htiDOS);
+                        //htiDOSe_lfanew = GetLONGFromPEFile(PEFile, true, false, 0x3C, hPEStruct, s_DOSe_lfanew, htiDOStitle, true, &addressofPE);
+                        htiPE = AddItemToTree(hPEStruct, sPEHEADER, NULL);
+                        string sCheckPE = GetUTF8DWORDFromPEFile(hPEFile, 0, lAddressOfPE);
+                        if (sCheckPE == "PE") {
+                            htiPESignature = AddItemToTree(hPEStruct, sPESIGNATURE + sCheckPE, htiPE);
+                        }
+                        else {
+                            htiPESignature = AddItemToTree(hPEStruct, sPESIGNATURE + sCheckPE, htiPE, TRUE);
+                        }
+                        //htiPESignature = GetHexWORDFromPEFile(PEFile, false, addressofPE, hPEStruct, s_PESignature, htiPEtitle, true, pe);
+                        TreeView_Expand(hPEStruct, htiDOS, TVE_EXPAND);
+                        TreeView_Expand(hPEStruct, htiPE, TVE_EXPAND);
+                        CloseHandle(hPEFile);
                     }
                     break;
                 }
@@ -252,14 +266,17 @@ static HANDLE hOpenPEFile(HWND hwnd) {
 }
 
 
-HTREEITEM AddItemToTree(HWND hwndTV, string lpszItem, HTREEITEM hParent)
+HTREEITEM AddItemToTree(HWND hwndTV, string sItem, HTREEITEM hParent, BOOL bIncorrectElement)
 {
-    TVITEM tParent;
     TVINSERTSTRUCT tvins;
     HTREEITEM hme;
-    // set the parameters of ITEM
     tvins.item.mask = TVIF_TEXT | TVIF_IMAGE | TVIF_DI_SETITEM | TVIF_PARAM;
-    tvins.item.pszText = const_cast<char*>(lpszItem.c_str());
+    if (bIncorrectElement) {
+        tvins.item.mask += TVIF_STATE;
+        tvins.item.state = TVIS_BOLD;
+        tvins.item.stateMask = TVIS_BOLD;
+    }
+    tvins.item.pszText = const_cast<char*>(sItem.c_str());
     tvins.hInsertAfter = TVI_ROOT;
     if (hParent == NULL)
     {
@@ -269,43 +286,99 @@ HTREEITEM AddItemToTree(HWND hwndTV, string lpszItem, HTREEITEM hParent)
     {
         tvins.hParent = hParent;
     }
-    // call the function key TreeView_InsertItem
     hme = TreeView_InsertItem(hwndTV, &tvins);
     return hme;
 }
 
-HTREEITEM vGetDataFromPEFile(HANDLE PEFile, BOOL ReadFromCurrentPose, LONG lDistanceToMove, DWORD nNumberOfBytesToRead, HWND hwndTV, string label, HTREEITEM hParent) {
-    SetFilePointer(PEFile, lDistanceToMove, NULL, ReadFromCurrentPose);
-    char* data = new char[nNumberOfBytesToRead];
-    ReadFile(PEFile, data, nNumberOfBytesToRead, NULL, NULL);
-    return AddItemToTree(hwndTV, label + data, hParent);
+//HTREEITEM GetDataFromPEFile(HANDLE hPEFile, BOOL bReadFromCurrentPose, LONG lDistanceToMove, DWORD nNumberOfBytesToRead, HWND hwndTV, string sLabel, HTREEITEM hParent) {
+//    SetFilePointer(hPEFile, lDistanceToMove, NULL, bReadFromCurrentPose);
+//    char* psData = new char[nNumberOfBytesToRead];
+//    ReadFile(hPEFile, psData, nNumberOfBytesToRead, NULL, NULL);
+//    return AddItemToTree(hwndTV, sLabel + psData, hParent);
+//    надо бы удаление psData
+//}
+
+string GetUTF8WORDFromPEFile(HANDLE hPEFile, BOOL ReadFromCurrentPose, LONG lDistanceToMove, PLONG lpDistanceToMoveHigh) {
+    SetFilePointer(hPEFile, lDistanceToMove, lpDistanceToMoveHigh, ReadFromCurrentPose);
+    char sData[3] = "";
+    ReadFile(hPEFile, sData, 2, NULL, NULL);
+    return sData;
 }
 
-HTREEITEM vGetLONGFromPEFile(HANDLE PEFile, BOOL tohex, BOOL ReadFromCurrentPose, LONG lDistanceToMove, HWND hwndTV, string label, HTREEITEM hParent, BOOL usebuffer, LONG* Buffer) {
-    SetFilePointer(PEFile, lDistanceToMove, NULL, ReadFromCurrentPose);
-    LONG data;
-    ReadFile(PEFile, &data, 4, NULL, NULL);
-    if (usebuffer) {
-        *Buffer = data;
-    }
-    if (tohex) {
-        char hex[8];
-        std::snprintf(hex, 8, "%x", data);
-        return AddItemToTree(hwndTV, label + "0x" + hex, hParent);
+LONG GetLONGFromPEFile(HANDLE hPEFile, BOOL ReadFromCurrentPose, LONG lDistanceToMove, PLONG lpDistanceToMoveHigh) {
+    SetFilePointer(hPEFile, lDistanceToMove, lpDistanceToMoveHigh, ReadFromCurrentPose);
+    LONG lData;
+    ReadFile(hPEFile, &lData, 4, NULL, NULL);
+    return lData;
+}
+
+string GetStringFromLONG(LONG lData, BOOL bToHex) {
+    if (bToHex) {
+        char sHex[8];
+        std::snprintf(sHex, 8, "%x", lData);
+        return "0x" + string(sHex);
     }
     else {
-        char dec[10];
-        std::snprintf(dec, 10, "%d", data);
-        return AddItemToTree(hwndTV, label + dec, hParent);
+        char sDec[10];
+        std::snprintf(sDec, 10, "%d", lData);
+        return sDec;
     }
 }
 
-HTREEITEM vGetHexWORDFromPEFile(HANDLE PEFile, BOOL ReadFromCurrentPose, LONG lDistanceToMove, HWND hwndTV, string label, HTREEITEM hParent, BOOL usebuffer, char *Buffer) {
-    SetFilePointer(PEFile, lDistanceToMove, NULL, ReadFromCurrentPose);
-    char data[3] = "";
-    ReadFile(PEFile, data, 2, NULL, NULL);
-    if (usebuffer) {
-        memcpy(Buffer, data, 3);
-    }
-    return AddItemToTree(hwndTV, label + data, hParent);
+string GetUTF8DWORDFromPEFile(HANDLE hPEFile, BOOL ReadFromCurrentPose, LONG lDistanceToMove, PLONG lpDistanceToMoveHigh) {
+    SetFilePointer(hPEFile, lDistanceToMove, lpDistanceToMoveHigh, ReadFromCurrentPose);
+    char sData[5] = "";
+    ReadFile(hPEFile, sData, 4, NULL, NULL);
+    return sData;
 }
+
+DWORD GetDWORDFromPEFile(HANDLE hPEFile, BOOL bReadFromCurrentPose, LONG lDistanceToMove, PLONG lpDistanceToMoveHigh) {
+    SetFilePointer(hPEFile, lDistanceToMove, lpDistanceToMoveHigh, bReadFromCurrentPose);
+    DWORD dwData;
+    ReadFile(hPEFile, &dwData, 4, NULL, NULL);
+    return dwData;
+}
+
+string GetStringFromDWORD(DWORD lData, BOOL bToHex) {
+    if (bToHex) {
+        char sHex[8];
+        std::snprintf(sHex, 8, "%x", lData);
+        return string(sHex);
+    }
+    else {
+        char sDec[10];
+        std::snprintf(sDec, 10, "%d", lData);
+        return sDec;
+    }
+}
+
+
+
+//HTREEITEM GetLONGFromPEFile(HANDLE hPEFile, BOOL bToHex, BOOL ReadFromCurrentPose, LONG lDistanceToMove, HWND hwndTV, string sLabel, HTREEITEM hParent, BOOL bUseBuffer, LONG* plBuffer) {
+//    SetFilePointer(hPEFile, lDistanceToMove, NULL, ReadFromCurrentPose);
+//    LONG lData;
+//    ReadFile(hPEFile, &lData, 4, NULL, NULL);
+//    if (bUseBuffer) {
+//        *plBuffer = lData;
+//    }
+//    if (bToHex) {
+//        char sHex[8];
+//        std::snprintf(sHex, 8, "%x", lData);
+//        return AddItemToTree(hwndTV, sLabel + "0x" + sHex, hParent);
+//    }
+//    else {
+//        char sDec[10];
+//        std::snprintf(sDec, 10, "%d", lData);
+//        return AddItemToTree(hwndTV, sLabel + sDec, hParent);
+//    }
+//}
+//
+//HTREEITEM GetHexWORDFromPEFile(HANDLE hPEFile, BOOL bReadFromCurrentPose, LONG lDistanceToMove, HWND hwndTV, string sLabel, HTREEITEM hParent, BOOL bUseBuffer, char* psBuffer) {
+//    SetFilePointer(hPEFile, lDistanceToMove, NULL, bReadFromCurrentPose);
+//    char szData[3] = "";
+//    ReadFile(hPEFile, szData, 2, NULL, NULL);
+//    if (bUseBuffer) {
+//        memcpy(psBuffer, szData, 3);
+//    }
+//    return AddItemToTree(hwndTV, sLabel + szData, hParent);
+//}
