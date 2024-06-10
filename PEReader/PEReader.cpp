@@ -15,7 +15,7 @@ string szWindowClass = "PEREADER";            // имя класса главн�
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
-INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
+//INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -31,6 +31,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     //LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     //LoadStringW(hInstance, IDC_PEREADER, szWindowClass, MAX_LOADSTRING);
     MyRegisterClass(hInstance);
+    RegisterCodeWndClass(hInstance);
 
     // Выполнить инициализацию приложения:
     if (!InitInstance (hInstance, nCmdShow))
@@ -155,7 +156,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 //    break;
                 case IDM_OPENFILE:
                 {
-                    HANDLE hPEFile = hOpenPEFile(hWnd);
+                    OpenFileWithDialogue(hWnd);
+                    hPEFile = hOpenPEFile(hWnd);
                     if (hPEFile) {
                         string sCheckMZ = GetUTF8WORDFromPEFile(hPEFile);
                         //ReadFile(PEFile, checkMZ, 2, NULL, NULL);
@@ -163,6 +165,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                             MessageBox(NULL, "Это не PE файл!", "Предупреждение", MB_ICONWARNING);
                             break;
                         }
+                        DestroyCodeWindows();
                         TreeView_DeleteAllItems(hPEStruct);
                         SetWindowTextA(hPEFileName, ofn.lpstrFile);
                         htiDOS = AddItemToTree(hPEStruct, sDOSHEADER, NULL);
@@ -170,7 +173,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         //htiDOSstub = AddItemToTree(hPEStruct, sDOSSTUB, NULL);
 
                         LONG lAddressOfPE = GetLONGFromPEFile(hPEFile, FALSE, 0x3C);
-                        string sHexAddressOfPE = GetStringFromLONG(lAddressOfPE, TRUE);
+                        string sHexAddressOfPE = GetStringFromLONG(lAddressOfPE, TRUE, TRUE);
                         string sAddressOfPE = GetStringFromLONG(lAddressOfPE);
                         htiDOSe_lfanew = AddItemToTree(hPEStruct, sDOSE_LFANEW + sHexAddressOfPE + " (" + sAddressOfPE + ")", htiDOS);
                         //htiDOSe_lfanew = GetLONGFromPEFile(PEFile, true, false, 0x3C, hPEStruct, s_DOSe_lfanew, htiDOStitle, true, &addressofPE);
@@ -186,6 +189,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         TreeView_Expand(hPEStruct, htiDOS, TVE_EXPAND);
                         TreeView_Expand(hPEStruct, htiPE, TVE_EXPAND);
                         CloseHandle(hPEFile);
+                        InitCodeWnd(hInst, &hDOSStubCodeWnd, szDOSStubCodeTitle.c_str(), 0x3D, lAddressOfPE-1);
                     }
                     break;
                 }
@@ -212,34 +216,32 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 }
 
 // Обработчик сообщений для окна "О программе".
-INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    UNREFERENCED_PARAMETER(lParam);
-    switch (message)
-    {
-    case WM_INITDIALOG:
-        return (INT_PTR)TRUE;
+//INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+//{
+//    UNREFERENCED_PARAMETER(lParam);
+//    switch (message)
+//    {
+//    case WM_INITDIALOG:
+//        return (INT_PTR)TRUE;
+//
+//    case WM_COMMAND:
+//        if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
+//        {
+//            EndDialog(hDlg, LOWORD(wParam));
+//            return (INT_PTR)TRUE;
+//        }
+//        break;
+//    }
+//    return (INT_PTR)FALSE;
+//}
 
-    case WM_COMMAND:
-        if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
-        {
-            EndDialog(hDlg, LOWORD(wParam));
-            return (INT_PTR)TRUE;
-        }
-        break;
-    }
-    return (INT_PTR)FALSE;
-}
-
-static void vCreateMenu(HWND hwnd) {
+static VOID vCreateMenu(HWND hwnd) {
     HMENU hMenu = CreateMenu();
     AppendMenu(hMenu, MF_POPUP, IDM_OPENFILE, IDS_OPENFILE);
     SetMenu(hwnd, hMenu);
 }
 
-static HANDLE hOpenPEFile(HWND hwnd) {
-    HANDLE hf;
-
+static BOOL OpenFileWithDialogue(HWND hwnd) {
     ZeroMemory(&ofn, sizeof(ofn));
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = hwnd;
@@ -252,16 +254,18 @@ static HANDLE hOpenPEFile(HWND hwnd) {
     ofn.nMaxFileTitle = 0;
     ofn.lpstrInitialDir = NULL;
     ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+    return GetOpenFileName(&ofn);
+}
 
-    if (GetOpenFileName(&ofn) == TRUE)
-        hf = CreateFile(ofn.lpstrFile,
-            GENERIC_READ,
-            0,
-            (LPSECURITY_ATTRIBUTES)NULL,
-            OPEN_EXISTING,
-            FILE_ATTRIBUTE_NORMAL,
-            (HANDLE)NULL);
-    else hf = NULL;
+static HANDLE hOpenPEFile(HWND hwnd) {
+    HANDLE hf;
+    hf = CreateFile(ofn.lpstrFile,
+        GENERIC_READ,
+        0,
+        (LPSECURITY_ATTRIBUTES)NULL,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        (HANDLE)NULL);
     return hf;
 }
 
@@ -312,11 +316,16 @@ LONG GetLONGFromPEFile(HANDLE hPEFile, BOOL ReadFromCurrentPose, LONG lDistanceT
     return lData;
 }
 
-string GetStringFromLONG(LONG lData, BOOL bToHex) {
+string GetStringFromLONG(LONG lData, BOOL bToHex, BOOL bWriteWith0x) {
     if (bToHex) {
-        char sHex[8];
-        std::snprintf(sHex, 8, "%x", lData);
-        return "0x" + string(sHex);
+        char sHex[10];
+        std::snprintf(sHex, 9, "%08X", lData);
+        if (bWriteWith0x){
+            return "0x" + string(sHex);
+        }
+        else{
+            return string(sHex);
+        }
     }
     else {
         char sDec[10];
@@ -341,18 +350,41 @@ DWORD GetDWORDFromPEFile(HANDLE hPEFile, BOOL bReadFromCurrentPose, LONG lDistan
 
 string GetStringFromDWORD(DWORD lData, BOOL bToHex) {
     if (bToHex) {
-        char sHex[8];
+        char sHex[9];
         std::snprintf(sHex, 8, "%x", lData);
         return string(sHex);
     }
     else {
-        char sDec[10];
+        char sDec[11];
         std::snprintf(sDec, 10, "%d", lData);
         return sDec;
     }
 }
 
+BYTE GetBYTEFromPEFile(HANDLE hPEFile, BOOL ReadFromCurrentPose, LONG lDistanceToMove, PLONG lpDistanceToMoveHigh) {
+    SetFilePointer(hPEFile, lDistanceToMove, lpDistanceToMoveHigh, ReadFromCurrentPose);
+    BYTE BData;
+    ReadFile(hPEFile, &BData, 1, NULL, NULL);
+    return BData;
+}
 
+string GetStringFromBYTE(BYTE BData, BOOL bToHex, BOOL bWriteWith0x) {
+    if (bToHex) {
+        char sHex[3] = "";
+        std::snprintf(sHex, 3, "%02x", BData);
+        if (bWriteWith0x) {
+            return "0x" + string(sHex);
+        }
+        else {
+            return string(sHex);
+        }
+    }
+    else {
+        char sDec[4];
+        std::snprintf(sDec, 3, "%d", BData);
+        return sDec;
+    }
+}
 
 //HTREEITEM GetLONGFromPEFile(HANDLE hPEFile, BOOL bToHex, BOOL ReadFromCurrentPose, LONG lDistanceToMove, HWND hwndTV, string sLabel, HTREEITEM hParent, BOOL bUseBuffer, LONG* plBuffer) {
 //    SetFilePointer(hPEFile, lDistanceToMove, NULL, ReadFromCurrentPose);
@@ -382,3 +414,142 @@ string GetStringFromDWORD(DWORD lData, BOOL bToHex) {
 //    }
 //    return AddItemToTree(hwndTV, sLabel + szData, hParent);
 //}
+
+ATOM RegisterCodeWndClass(HINSTANCE hInstance)
+{
+    WNDCLASSEX wcex;
+
+    wcex.cbSize = sizeof(WNDCLASSEX);
+
+    wcex.style = CS_HREDRAW | CS_VREDRAW;
+    wcex.lpfnWndProc = CodeWndProc;
+    wcex.cbClsExtra = 0;
+    wcex.cbWndExtra = 0;
+    wcex.hInstance = hInstance;
+    wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_PEREADER));
+    wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
+    wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    wcex.lpszMenuName = NULL;
+    //MAKEINTRESOURCEW(IDC_PEREADER);
+    wcex.lpszClassName = szCodeWndClass.c_str();
+    wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
+
+    return RegisterClassEx(&wcex);
+}
+
+BOOL InitCodeWnd(HINSTANCE hInstance, HWND *hWnd, LPCTSTR lpWindowName, LONG lBegOfCode, LONG lEndOfCode) {
+    LONG laAdresses[2] = { lBegOfCode , lEndOfCode };
+    CREATESTRUCT csAdresses;
+    csAdresses.lpCreateParams = &laAdresses;
+    DestroyWindow(*hWnd);
+    *hWnd = CreateWindowA(szCodeWndClass.c_str(), lpWindowName, WS_OVERLAPPEDWINDOW | WS_VSCROLL,
+        CW_USEDEFAULT, 0, 732, 480, nullptr, nullptr, hInstance, &csAdresses);
+
+    if (!*hWnd)
+    {
+        return FALSE;
+    }
+
+    ShowWindow(*hWnd, SW_NORMAL);
+    UpdateWindow(*hWnd);
+
+    return TRUE;
+}
+
+LRESULT CALLBACK CodeWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    switch (message)
+    {
+    case WM_CREATE:
+    {
+        LPCREATESTRUCT create_struct = reinterpret_cast<LPCREATESTRUCT>(lParam);
+        LONG lBegOfCode = **(LONG**)(create_struct->lpCreateParams);
+        LONG lEndOfCode = *(*(LONG**)(create_struct->lpCreateParams)+1);
+        HWND hCodeTable = CreateWindowA(
+            WC_LISTVIEW,
+            "",
+            WS_VISIBLE | WS_CHILD | LVS_REPORT | WS_BORDER,
+            0, 0,
+            700,
+            480,
+            hWnd,
+            NULL,
+            hInst,
+            NULL);
+
+        LVCOLUMN lvc;
+        int iCol;
+
+        lvc.mask = LVCF_FMT | LVCFMT_CENTER | LVCF_TEXT | LVCF_SUBITEM;
+        lvc.iSubItem = 0;
+        lvc.pszText = nullptr;
+        lvc.cx = 60;
+        lvc.fmt = LVCFMT_CENTER;
+        if (ListView_InsertColumn(hCodeTable, 0, &lvc) == -1)
+            return FALSE;
+        lvc.cx = 40;
+        for (iCol = 1; iCol <= 16; iCol++)
+        {
+            char sHex[2] = { (iCol-1 < 10) ? '0' + iCol-1 : 'a' - 10 + iCol-1, '\0' };
+            lvc.iSubItem = iCol;
+            lvc.pszText = sHex;
+
+            if (ListView_InsertColumn(hCodeTable, iCol, &lvc) == -1)
+                return FALSE;
+        }
+        int nNumberOfBytes = lEndOfCode - lBegOfCode;
+        int nByte = 0;
+        hPEFile = hOpenPEFile(hPEFileName);
+        SetFilePointer(hPEFile, lBegOfCode, NULL, 0);
+        for (int j = 0; j < 1 + int(ceil(nNumberOfBytes/16)); j++)
+        {
+            AddItemToTable(hCodeTable, GetStringFromLONG(lBegOfCode + j*16, TRUE), j, 0);
+            for (int i = 1; i < 17; i++) {
+                if (nByte > nNumberOfBytes) {
+                    break;
+                }
+                AddItemToTable(hCodeTable, GetStringFromBYTE(GetBYTEFromPEFile(hPEFile,TRUE,0), TRUE), j, i);
+                nByte += 1;
+            }
+        }
+        break;
+    }
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+        // TODO: Добавьте сюда любой код прорисовки, использующий HDC...
+        EndPaint(hWnd, &ps);
+    }
+    break;
+    case WM_DESTROY:
+        return 0;
+        break;
+    default:
+        return DefWindowProc(hWnd, message, wParam, lParam);
+    }
+    return 0;
+}
+
+VOID DestroyCodeWindows() {
+    DestroyWindow(hDOSStubCodeWnd);
+    return;
+}
+
+VOID AddItemToTable(HWND hWnd, string sItem, int nLine, int nColumn)
+{
+    LVITEM lvi = { 0 };
+    lvi.mask = LVIF_TEXT;
+    lvi.state = 0;
+    lvi.stateMask = 0;
+    lvi.iItem = nLine;
+    lvi.pszText = const_cast<char*>(sItem.c_str());
+    if (nColumn == 0) {
+        ListView_InsertItem(hWnd, &lvi);
+    }
+    else {
+        lvi.iSubItem = nColumn;
+        ListView_SetItem(hWnd, &lvi);
+    }
+    return;
+}
