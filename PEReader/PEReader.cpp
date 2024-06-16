@@ -197,21 +197,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                             htiPEFileHeaderTimeDateStamp = AddItemToTree(hPEStruct, sPEFILEHEADERTIMEDATESTAMP + sTimeDateStamp, htiPEFileHeader);
                             htiPEFileHeaderTimeDateStampBigEndian = AddItemToTree(hPEStruct, sPEFILEHEADERTIMEDATESTAMPBIGENDIAN + sTimeDateStampBigEndian, htiPEFileHeader);
                             DWORD dwPointerToSymbolTable = GetDWORDFromPEFile(hPEFile);
-                            if (dwPointerToSymbolTable == 0) {
-                                htiPEFileHeaderPointerToSymbolTable = AddItemToTree(hPEStruct, sPEFILEHEADERPOINTERTOSYMBOLTABLE + GetStringFromDWORDHexAndDec(dwPointerToSymbolTable), htiPEFileHeader);
-                            }
-                            else {
-                                htiPEFileHeaderPointerToSymbolTable = AddItemToTree(hPEStruct, sPEFILEHEADERPOINTERTOSYMBOLTABLE + GetStringFromDWORDHexAndDec(dwPointerToSymbolTable), htiPEFileHeader, TRUE);
-                            }
+                            htiPEFileHeaderPointerToSymbolTable = AddItemToTree(hPEStruct, sPEFILEHEADERPOINTERTOSYMBOLTABLE + GetStringFromDWORDHexAndDec(dwPointerToSymbolTable), htiPEFileHeader, dwPointerToSymbolTable != 0);
                             DWORD dwNumberOfSymbols = GetDWORDFromPEFile(hPEFile);
                             string sHexNumberOfSymbols = GetStringFromDWORD(dwNumberOfSymbols, TRUE, TRUE);
                             string sNumberOfSymbols = GetStringFromDWORD(dwNumberOfSymbols);
-                            if (dwNumberOfSymbols == 0) {
-                                htiPEFileHeaderNumberOfSymbols = AddItemToTree(hPEStruct, sPEFILEHEADERNUMBEROFSYMBOLS + sHexNumberOfSymbols + " (" + sNumberOfSymbols + ")", htiPEFileHeader);
-                            }
-                            else {
-                                htiPEFileHeaderNumberOfSymbols = AddItemToTree(hPEStruct, sPEFILEHEADERNUMBEROFSYMBOLS + sHexNumberOfSymbols + " (" + sNumberOfSymbols + ")", htiPEFileHeader, TRUE);
-                            }
+                            htiPEFileHeaderNumberOfSymbols = AddItemToTree(hPEStruct, sPEFILEHEADERNUMBEROFSYMBOLS + sHexNumberOfSymbols + " (" + sNumberOfSymbols + ")", htiPEFileHeader, dwNumberOfSymbols != 0);
                             WORD wSizeOfOptionalHeader = GetWORDFromPEFile(hPEFile);
                             string sHexSizeOfOptionalHeader = GetStringFromWORD(wSizeOfOptionalHeader, TRUE, TRUE);
                             string sSizeOfOptionalHeader = GetStringFromWORD(wSizeOfOptionalHeader);
@@ -261,22 +251,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                                     else {
                                         htiOptionalHeaderSectionAlignment = AddItemToTree(hPEStruct, sOPTIONALHEADERSECTIONALIGMENT + GetStringFromDWORDHexAndDec(dwSectionAlignment), htiOptionalHeader);
                                     }
-                                    if (bIsPowerOfTwo(dwFileAlignment) && dwFileAlignment >= 512 && dwFileAlignment <= 65536) {
-                                        htiOptionalHeaderFileAlignment = AddItemToTree(hPEStruct, sOPTIONALHEADERFILEALIGNMENT + GetStringFromDWORDHexAndDec(dwFileAlignment), htiOptionalHeader);
-                                    }
-                                    else {
-                                        htiOptionalHeaderFileAlignment = AddItemToTree(hPEStruct, sOPTIONALHEADERFILEALIGNMENT + GetStringFromDWORDHexAndDec(dwFileAlignment) , htiOptionalHeader, TRUE);
-                                    }
+                                    htiOptionalHeaderFileAlignment = AddItemToTree(hPEStruct, sOPTIONALHEADERFILEALIGNMENT + GetStringFromDWORDHexAndDec(dwFileAlignment), htiOptionalHeader, !(bIsPowerOfTwo(dwFileAlignment) && dwFileAlignment >= 512 && dwFileAlignment <= 65536));
                                     WORD wMajorVersion = GetWORDFromPEFile(hPEFile);
                                     WORD wMinorVersion = GetWORDFromPEFile(hPEFile);
-                                    if (wMinorVersion <= wMajorVersion) {
-                                        htiOptionalHeaderMajorOperatingSystemVersion = AddItemToTree(hPEStruct, sOPTIONALHEADERMAJOROPERATINGSYSTEMVERSION + GetStringFromWORDHexAndDec(wMajorVersion), htiOptionalHeader);
-                                        htiOptionalHeaderMinorOperatingSystemVersion = AddItemToTree(hPEStruct, sOPTIONALHEADERMINOROPERATINGSYSTEMVERSION + GetStringFromWORDHexAndDec(wMinorVersion), htiOptionalHeader);
-                                    }
-                                    else {
-                                        htiOptionalHeaderMajorOperatingSystemVersion = AddItemToTree(hPEStruct, sOPTIONALHEADERMAJOROPERATINGSYSTEMVERSION + GetStringFromWORDHexAndDec(wMajorVersion), htiOptionalHeader, TRUE);
-                                        htiOptionalHeaderMinorOperatingSystemVersion = AddItemToTree(hPEStruct, sOPTIONALHEADERMINOROPERATINGSYSTEMVERSION + GetStringFromWORDHexAndDec(wMinorVersion), htiOptionalHeader, TRUE);
-                                    }
+                                    htiOptionalHeaderMajorOperatingSystemVersion = AddItemToTree(hPEStruct, sOPTIONALHEADERMAJOROPERATINGSYSTEMVERSION + GetStringFromWORDHexAndDec(wMajorVersion), htiOptionalHeader, wMinorVersion > wMajorVersion);
+                                    htiOptionalHeaderMinorOperatingSystemVersion = AddItemToTree(hPEStruct, sOPTIONALHEADERMINOROPERATINGSYSTEMVERSION + GetStringFromWORDHexAndDec(wMinorVersion), htiOptionalHeader, wMinorVersion > wMajorVersion);
                                     DWORD dwSizeOfImage = GetDWORDFromPEFile(hPEFile, TRUE, 12);
                                     if (dwSizeOfImage % dwSectionAlignment == 0) {
                                         htiOptionalHeaderSizeOfImage = AddItemToTree(hPEStruct, sOPTIONALHEADERSIZEOFIMAGE + GetStringFromDWORDHexAndDec(dwSizeOfImage), htiOptionalHeader);
@@ -294,23 +273,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                                     WORD wSubsystem = GetWORDFromPEFile(hPEFile, TRUE, 4);
                                     htiOptionalHeaderSubsystem = AddItemToTree(hPEStruct, sOPTIONALHEADERSUBSYSTEM + GetStringFromWORD(wSubsystem, TRUE, TRUE), htiOptionalHeader);
                                     DWORD NumberOfRvaAndSizes = GetDWORDFromPEFile(hPEFile, TRUE, 22);
-                                    if (NumberOfRvaAndSizes != 16) {
-                                        htiOptionalHeaderNumberOfRvaAndSizes = AddItemToTree(hPEStruct, sOPTIONALHEADERNUMBEROFRVAANDSIZES + GetStringFromDWORD(NumberOfRvaAndSizes, TRUE, TRUE), htiOptionalHeader, TRUE);
-                                    }
-                                    else {
-                                        htiOptionalHeaderNumberOfRvaAndSizes = AddItemToTree(hPEStruct, sOPTIONALHEADERNUMBEROFRVAANDSIZES + GetStringFromDWORD(NumberOfRvaAndSizes, TRUE, TRUE), htiOptionalHeader);
-                                    }
+                                    htiOptionalHeaderNumberOfRvaAndSizes = AddItemToTree(hPEStruct, sOPTIONALHEADERNUMBEROFRVAANDSIZES + GetStringFromDWORD(NumberOfRvaAndSizes, TRUE, TRUE), htiOptionalHeader, NumberOfRvaAndSizes != 16);
                                     htiOptionalHeaderDataDirectory = AddItemToTree(hPEStruct, sOPTIONALHEADERDATADIRECTORY, htiOptionalHeader);
                                     for (unsigned int i = 0; i < 16; i++) {
                                         DWORD dwVirtualAddress = GetDWORDFromPEFile(hPEFile);
                                         DWORD dwSize = GetDWORDFromPEFile(hPEFile);
-                                        if (((i == 8) && dwSize!=0) ||
-                                            ((i == 7 || i == 15) && dwVirtualAddress != 0 && dwSize != 0)) {
-                                            htiOptionalHeaderDataDirectorySections[i] = AddItemToTree(hPEStruct, "[" + std::to_string(i) + "]: " + sOPTIONALHEADERDATADIRECTORYSECTIONNAMES[i], htiOptionalHeaderDataDirectory, TRUE);
-                                        }
-                                        else {
-                                            htiOptionalHeaderDataDirectorySections[i] = AddItemToTree(hPEStruct, "[" + std::to_string(i) + "]: " + sOPTIONALHEADERDATADIRECTORYSECTIONNAMES[i], htiOptionalHeaderDataDirectory);
-                                        }
+                                        htiOptionalHeaderDataDirectorySections[i] = AddItemToTree(hPEStruct, "[" + std::to_string(i) + "]: " + sOPTIONALHEADERDATADIRECTORYSECTIONNAMES[i], htiOptionalHeaderDataDirectory,
+                                            (((i == 8) && dwSize != 0) ||
+                                            ((i == 7 || i == 15) && dwVirtualAddress != 0 && dwSize != 0)));
                                         AddItemToTree(hPEStruct, sOPTIONALHEADERDATADIRECTORYVIRTUALADDRESS + GetStringFromDWORDHexAndDec(dwVirtualAddress), htiOptionalHeaderDataDirectorySections[i]);
                                         AddItemToTree(hPEStruct, sOPTIONALHEADERDATADIRECTORYSIZE + GetStringFromDWORDHexAndDec(dwSize), htiOptionalHeaderDataDirectorySections[i]);
                                         TreeView_Expand(hPEStruct, htiOptionalHeaderDataDirectorySections[i], TVE_EXPAND);
@@ -858,7 +828,7 @@ BOOL OpenPage(HWND hWnd, LONG dwPage) {
         "",
         WS_VISIBLE | WS_CHILD | LVS_REPORT | WS_BORDER,
         0, 0,
-        1035,
+        1037,
         480,
         hWnd,
         NULL,
