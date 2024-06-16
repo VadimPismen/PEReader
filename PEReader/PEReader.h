@@ -5,6 +5,7 @@
 #include <commdlg.h>
 #include <CommCtrl.h>
 #include <ctime>
+#include <vector>
 
 #define IDM_OPENFILE	2
 #define IDS_OPENFILE	"Открыть файл"
@@ -55,14 +56,55 @@ const string sOPTIONALHEADERSIZEOFHEADERS = "SizeOfHeaders = ";
 const string sOPTIONALHEADERSUBSYSTEM = "Subsystem = ";
 const string sOPTIONALHEADERNUMBEROFRVAANDSIZES = "NumberOfRvaAndSizes = ";
 const string sOPTIONALHEADERDATADIRECTORY = "DataDirectory:";
+const string sOPTIONALHEADERDATADIRECTORYSECTIONNAMES[16] =
+{"Export Table", "Import Table", "Resource Table", "Exception Table",
+"Certificate Table", "Base Relocation Table", "Debug", "Architecture",
+"Global Ptr", "TLS Table", "Load Config Table", "Bound Import",
+"IAT", "Delay Import Descriptor", "CLR Runtime Header", "Reserved"};
 const string sOPTIONALHEADERDATADIRECTORYVIRTUALADDRESS = "VirtualAddress = ";
 const string sOPTIONALHEADERDATADIRECTORYSIZE = "Size = ";
+const string sSECTIONHEADER = "Section header:";
+const string sSECTIONHEADERNAME = "Name = ";
+//const string sSECTIONHEADERPHYSICALADDRESS = "PhysicalAddress = ";
+const string sSECTIONHEADERVIRTUALSIZE = "VirtualSize = ";
+const string sSECTIONHEADERVIRTUALADDRESS = "VirtualAddress = ";
+const string sSECTIONHEADERSIZEOFRAWDATA = "SizeOfRawData = ";
+const string sSECTIONHEADERPOINTERTORAWDATA = "PointerToRawData = ";
+const string sSECTIONHEADERPOINTERTORELOCATIONS = "PointerToRelocations = ";
+const string sSECTIONHEADERPOINTERTOLINENUMBERS = "PointerToLinenumbers = ";
+const string sSECTIONHEADERNUMBEROFRELOCATIONS = "NumberOfRelocations = ";
+const string sSECTIONHEADERNUMBEROFLINENUMBERS = "NumberOfLinenumbers = ";
+const string sSECTIONHEADERCHARACTERISTICS = "Characteristics = ";
 
 
 LONG lAddressOfPE;
 
-#define IDC_OPENDOSSTUB			200
+#define IDC_CLICKCODEBUTTON			200
+#define IDC_FORWARDBUTTON			201
+#define IDC_BACKBUTTON				202
 
+const string sFORWARD = "Forward";
+const string sBACK = "Back";
+
+const string szCodeWndClass = "CODEWND";
+
+struct hCodeButton {
+	HWND hCodeButton;
+	HWND hCodeWnd;
+	LONG lBegOfCode;
+	LONG lEndOfCode;
+	string sTitle;
+	LONG dwPage = 0;
+	HWND hCodeTable = NULL;
+	HWND hForwardButton = NULL;
+	HWND hBackButton = NULL;
+	DWORD dwCountOfPages = 0;
+	HWND hCountOfPages = NULL;
+};
+
+std::vector<hCodeButton> hCodeButtons;
+
+LONG nRowsOnPage = 300;
 HWND hPEFileName;
 HWND hPEStruct;
 HTREEITEM htiDOS;
@@ -95,8 +137,8 @@ HTREEITEM htiOptionalHeaderSizeOfHeaders;
 HTREEITEM htiOptionalHeaderSubsystem;
 HTREEITEM htiOptionalHeaderNumberOfRvaAndSizes;
 HTREEITEM htiOptionalHeaderDataDirectory;
-HTREEITEM htiOptionalHeaderDataDirectoryVirtualAddress;
-HTREEITEM htiOptionalHeaderDataDirectorySize;
+HTREEITEM htiOptionalHeaderDataDirectorySections[16];
+HTREEITEM htiSectionHeader;
 
 HANDLE hPEFile;
 VOID vCreateMenu(HWND hwnd);
@@ -105,6 +147,7 @@ HANDLE hOpenPEFile(HWND hwnd);
 HTREEITEM AddItemToTree(HWND hwndTV, string sItem, HTREEITEM hParent, BOOL bIncorrectElement = FALSE);
 
 LONG GetLONGFromPEFile(HANDLE hPEFile, BOOL ReadFromCurrentPose = TRUE, LONG lDistanceToMove = 0, PLONG lpDistanceToMoveHigh = NULL);
+string GetUTF8DWORDLONGFromPEFile(HANDLE hPEFile, BOOL ReadFromCurrentPose = TRUE, LONG lDistanceToMove = 0, PLONG lpDistanceToMoveHigh = NULL);
 string GetStringFromLONG(LONG lData, BOOL bToHex = FALSE, BOOL bWriteWith0x = FALSE);
 DWORD GetDWORDFromPEFile(HANDLE hPEFile, BOOL bReadFromCurrentPose = TRUE, LONG lDistanceToMove = 0, PLONG lpDistanceToMoveHigh = NULL);
 WORD GetWORDFromPEFile(HANDLE hPEFile, BOOL bReadFromCurrentPose = TRUE, LONG lDistanceToMove = 0, PLONG lpDistanceToMoveHigh = NULL);
@@ -118,17 +161,20 @@ string GetStringFromBYTE(BYTE BData, BOOL bToHex = FALSE, BOOL bWriteWith0x = FA
 //ULONGLONG GetULONGLONGFromPEFile(HANDLE hPEFile, BOOL bReadFromCurrentPose = TRUE, LONG lDistanceToMove = 0, PLONG lpDistanceToMoveHigh = NULL);
 //string GetStringFromULONGLONG(ULONGLONG ullData, BOOL bToHex = FALSE, BOOL bWriteWith0x = FALSE);
 ATOM RegisterCodeWndClass(HINSTANCE hInstance);
-BOOL InitCodeWnd(HINSTANCE hInstance, HWND* hWnd, LPCTSTR lpWindowName, LONG lBegOfCode, LONG lEndOfCode);
+void CreateCodeButton(HINSTANCE hInstance, HWND hWndParent, int x, int y, int nWidth, int nHeight, string sTitle, LONG lBegOfCode, LONG lEndOfCode);
+BOOL InitCodeWnd(HINSTANCE hInstance, size_t unIndexOfButton);
+//BOOL InitCodeWnd(HINSTANCE hInstance, HWND* hWnd, unsigned int unIndexOfButton);
+//BOOL InitCodeWnd(HINSTANCE hInstance, HWND* hWnd, LPCTSTR lpWindowName, LONG lBegOfCode, LONG lEndOfCode);
 LRESULT CodeWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
-VOID DestroyCodeWindows();
+VOID DestroyCodeWindowsAndButtons();
 VOID AddItemToTable(HWND hWnd, string sItem, int nLine, int nColumn);
 BOOL bIsPowerOfTwo(int nData);
+BOOL OpenPage(HWND hWnd, LONG dwPage = 0);
 string GetUTF8DWORDFromPEFile(HANDLE hPEFile, BOOL ReadFromCurrentPose = TRUE, LONG lDistanceToMove = 0, PLONG lpDistanceToMoveHigh = NULL);
 string GetUTF8WORDFromPEFile(HANDLE hPEFile, BOOL ReadFromCurrentPose = TRUE, LONG lDistanceToMove = 0, PLONG lpDistanceToMoveHigh = NULL);
 //HTREEITEM GetDataFromPEFile(HANDLE hPEFile, BOOL bReadFromCurrentPose, LONG lDistanceToMove, DWORD nNumberOfBytesToRead, HWND hwndTV, string sLabel, HTREEITEM hParent);
 //HTREEITEM GetLONGFromPEFile(HANDLE hPEFile, BOOL bToHex, BOOL ReadFromCurrentPose, LONG lDistanceToMove, HWND hwndTV, string sLabel, HTREEITEM hParent, BOOL bUseBuffer = FALSE, LONG* plBuffer = nullptr);
 //HTREEITEM GetHexWORDFromPEFile(HANDLE hPEFile, BOOL bReadFromCurrentPose, LONG lDistanceToMove, HWND hwndTV, string sLabel, HTREEITEM hParent, BOOL bUseBuffer = FALSE, char* psBuffer = nullptr);
 
-const string szDOSStubCodeTitle = "DOS stub code";
-const string szCodeWndClass = "CODEWND";         
-HWND hDOSStubCodeWnd;
+const string szDOSStubCodeTitle = "DOS stub code";     
+//HWND hDOSStubCodeWnd;

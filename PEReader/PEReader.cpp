@@ -8,7 +8,7 @@
 
 // Глобальные переменные:
 HINSTANCE hInst;                                // текущий экземпляр
-string szTitle = "PE";                  // Текст строки заголовка
+string szTitle = "PE32";                  // Текст строки заголовка
 string szWindowClass = "PEREADER";            // имя класса главного окна
 
 // Отправить объявления функций, включенных в этот модуль кода:
@@ -99,7 +99,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    hInst = hInstance; // Сохранить маркер экземпляра в глобальной переменной
 
    HWND hWnd = CreateWindowA(szWindowClass.c_str(), szTitle.c_str(), WS_OVERLAPPEDWINDOW,
-       CW_USEDEFAULT, 0, 640, 480, nullptr, nullptr, hInstance, nullptr);
+       CW_USEDEFAULT, 0, 1280, 960, nullptr, nullptr, hInstance, nullptr);
 
    if (!hWnd)
    {
@@ -137,7 +137,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             5,
             20,
             400,
-            400,
+            880,
             hWnd,
             NULL,
             hInst,
@@ -165,7 +165,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                             MessageBox(NULL, "Это не PE файл!", "Предупреждение", MB_ICONWARNING);
                             break;
                         }
-                        DestroyCodeWindows();
+                        DestroyCodeWindowsAndButtons();
                         TreeView_DeleteAllItems(hPEStruct);
                         SetWindowTextA(hPEFileName, ofn.lpstrFile);
                         htiDOS = AddItemToTree(hPEStruct, sDOSHEADER, NULL);
@@ -174,13 +174,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         lAddressOfPE = GetLONGFromPEFile(hPEFile, FALSE, 0x3C);
                         string sHexAddressOfPE = GetStringFromLONG(lAddressOfPE, TRUE, TRUE);
                         string sAddressOfPE = GetStringFromLONG(lAddressOfPE);
-                        htiDOSe_lfanew = AddItemToTree(hPEStruct, sDOSE_LFANEW + sHexAddressOfPE + " (" + sAddressOfPE + ")" + sB, htiDOS);
+                        htiDOSe_lfanew = AddItemToTree(hPEStruct, sDOSE_LFANEW + sHexAddressOfPE + " (" + sAddressOfPE + ")", htiDOS);
                         htiPE = AddItemToTree(hPEStruct, sPEHEADER, NULL);
                         string sCheckPE = GetUTF8DWORDFromPEFile(hPEFile, 0, lAddressOfPE);
                         if (sCheckPE == "PE") {
                             htiPESignature = AddItemToTree(hPEStruct, sPESIGNATURE + sCheckPE, htiPE);
-
-                            CreateWindowA("button", szDOSStubCodeTitle.c_str(), WS_VISIBLE | WS_CHILD | ES_CENTER, 450, 60, 120, 30, hWnd, (HMENU)IDC_OPENDOSSTUB, NULL, NULL);
+                            CreateCodeButton(hInst, hWnd, 450, 60, 200, 30, szDOSStubCodeTitle.c_str(), 0x3D, lAddressOfPE - 1);
+                            /*CreateWindowA("button", szDOSStubCodeTitle.c_str(), WS_VISIBLE | WS_CHILD | ES_CENTER, 450, 60, 120, 30, hWnd, (HMENU)IDC_OPENDOSSTUB, hInst, NULL);*/
                             htiPEFileHeader = AddItemToTree(hPEStruct, sPEFILEHEADER, htiPE);
                             htiPEFileHeaderMachine = AddItemToTree(hPEStruct, sPEFILEHEADERMACHINE + GetStringFromWORD(GetWORDFromPEFile(hPEFile), TRUE, TRUE), htiPEFileHeader);
                             WORD wNumberOfSections = GetWORDFromPEFile(hPEFile);
@@ -215,7 +215,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                             WORD wSizeOfOptionalHeader = GetWORDFromPEFile(hPEFile);
                             string sHexSizeOfOptionalHeader = GetStringFromWORD(wSizeOfOptionalHeader, TRUE, TRUE);
                             string sSizeOfOptionalHeader = GetStringFromWORD(wSizeOfOptionalHeader);
-                            htiPEFileHeaderSizeOfOptionalHeader = AddItemToTree(hPEStruct, sPEFILEHEADERSIZEOFOPTIONALHEADER + sHexSizeOfOptionalHeader + " (" + sSizeOfOptionalHeader + ")" + sB, htiPEFileHeader);
+                            htiPEFileHeaderSizeOfOptionalHeader = AddItemToTree(hPEStruct, sPEFILEHEADERSIZEOFOPTIONALHEADER + sHexSizeOfOptionalHeader + " (" + sSizeOfOptionalHeader + ")", htiPEFileHeader);
                             htiPEFileHeaderCharacteristics = AddItemToTree(hPEStruct, sPEFILEHEADERCHARACTERISTICS + GetStringFromWORD(GetWORDFromPEFile(hPEFile), TRUE, TRUE), htiPEFileHeader);
                             htiOptionalHeader = AddItemToTree(hPEStruct, sOPTIONALHEADER, NULL);
                             WORD wMagic = GetWORDFromPEFile(hPEFile);
@@ -241,31 +241,31 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                                 else {
                                     htiOptionalHeaderMagic = AddItemToTree(hPEStruct, sOPTIONALHEADERMAGIC + GetStringFromWORD(wMagic, TRUE, TRUE) + sMagic, htiOptionalHeader);
                                     DWORD dwAddressOfEntryPoint = GetDWORDFromPEFile(hPEFile, TRUE, 14);
-                                    htiOptionalHeaderAddressOfEntryPoint = AddItemToTree(hPEStruct, sOPTIONALHEADERADDRESSOFENTRYPOINT + GetStringFromDWORDHexAndDec(dwAddressOfEntryPoint) + sB, htiOptionalHeader);
+                                    htiOptionalHeaderAddressOfEntryPoint = AddItemToTree(hPEStruct, sOPTIONALHEADERADDRESSOFENTRYPOINT + GetStringFromDWORDHexAndDec(dwAddressOfEntryPoint), htiOptionalHeader);
                                     DWORD dwBaseOfCode = GetDWORDFromPEFile(hPEFile);
-                                    htiOptionalHeaderBaseOfCode = AddItemToTree(hPEStruct, sOPTIONALHEADERBASEOFCODE + GetStringFromDWORDHexAndDec(dwBaseOfCode) + sB, htiOptionalHeader);
+                                    htiOptionalHeaderBaseOfCode = AddItemToTree(hPEStruct, sOPTIONALHEADERBASEOFCODE + GetStringFromDWORDHexAndDec(dwBaseOfCode), htiOptionalHeader);
                                     DWORD dwBaseOfData = GetDWORDFromPEFile(hPEFile);
-                                    htiOptionalHeaderBaseOfData = AddItemToTree(hPEStruct, sOPTIONALHEADERBASEOFDATA + GetStringFromDWORDHexAndDec(dwBaseOfData) + sB, htiOptionalHeader);
+                                    htiOptionalHeaderBaseOfData = AddItemToTree(hPEStruct, sOPTIONALHEADERBASEOFDATA + GetStringFromDWORDHexAndDec(dwBaseOfData), htiOptionalHeader);
                                     DWORD dwImageBase = GetDWORDFromPEFile(hPEFile);
                                     if (dwImageBase % 65536 == 0) {
-                                        htiOptionalHeaderImageBase = AddItemToTree(hPEStruct, sOPTIONALHEADERIMAGEBASE + GetStringFromDWORDHexAndDec(dwImageBase) + sB, htiOptionalHeader);
+                                        htiOptionalHeaderImageBase = AddItemToTree(hPEStruct, sOPTIONALHEADERIMAGEBASE + GetStringFromDWORDHexAndDec(dwImageBase), htiOptionalHeader);
                                     }
                                     else {
-                                        htiOptionalHeaderImageBase = AddItemToTree(hPEStruct, sOPTIONALHEADERIMAGEBASE + GetStringFromDWORDHexAndDec(dwImageBase) + sB + sNOTAMULTIPLE + sOF64KIB, htiOptionalHeader, TRUE);
+                                        htiOptionalHeaderImageBase = AddItemToTree(hPEStruct, sOPTIONALHEADERIMAGEBASE + GetStringFromDWORDHexAndDec(dwImageBase) + sNOTAMULTIPLE + sOF64KIB, htiOptionalHeader, TRUE);
                                     }
                                     DWORD dwSectionAlignment = GetDWORDFromPEFile(hPEFile);
                                     DWORD dwFileAlignment = GetDWORDFromPEFile(hPEFile);
                                     if (dwSectionAlignment < dwFileAlignment) {
-                                        htiOptionalHeaderSectionAlignment = AddItemToTree(hPEStruct, sOPTIONALHEADERSECTIONALIGMENT + GetStringFromDWORDHexAndDec(dwSectionAlignment) + sB, htiOptionalHeader, TRUE);
+                                        htiOptionalHeaderSectionAlignment = AddItemToTree(hPEStruct, sOPTIONALHEADERSECTIONALIGMENT + GetStringFromDWORDHexAndDec(dwSectionAlignment), htiOptionalHeader, TRUE);
                                     }
                                     else {
-                                        htiOptionalHeaderSectionAlignment = AddItemToTree(hPEStruct, sOPTIONALHEADERSECTIONALIGMENT + GetStringFromDWORDHexAndDec(dwSectionAlignment) + sB, htiOptionalHeader);
+                                        htiOptionalHeaderSectionAlignment = AddItemToTree(hPEStruct, sOPTIONALHEADERSECTIONALIGMENT + GetStringFromDWORDHexAndDec(dwSectionAlignment), htiOptionalHeader);
                                     }
                                     if (bIsPowerOfTwo(dwFileAlignment) && dwFileAlignment >= 512 && dwFileAlignment <= 65536) {
-                                        htiOptionalHeaderFileAlignment = AddItemToTree(hPEStruct, sOPTIONALHEADERFILEALIGNMENT + GetStringFromDWORDHexAndDec(dwFileAlignment) + sB, htiOptionalHeader);
+                                        htiOptionalHeaderFileAlignment = AddItemToTree(hPEStruct, sOPTIONALHEADERFILEALIGNMENT + GetStringFromDWORDHexAndDec(dwFileAlignment), htiOptionalHeader);
                                     }
                                     else {
-                                        htiOptionalHeaderFileAlignment = AddItemToTree(hPEStruct, sOPTIONALHEADERFILEALIGNMENT + GetStringFromDWORDHexAndDec(dwFileAlignment) + sB, htiOptionalHeader, TRUE);
+                                        htiOptionalHeaderFileAlignment = AddItemToTree(hPEStruct, sOPTIONALHEADERFILEALIGNMENT + GetStringFromDWORDHexAndDec(dwFileAlignment) , htiOptionalHeader, TRUE);
                                     }
                                     WORD wMajorVersion = GetWORDFromPEFile(hPEFile);
                                     WORD wMinorVersion = GetWORDFromPEFile(hPEFile);
@@ -279,17 +279,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                                     }
                                     DWORD dwSizeOfImage = GetDWORDFromPEFile(hPEFile, TRUE, 12);
                                     if (dwSizeOfImage % dwSectionAlignment == 0) {
-                                        htiOptionalHeaderSizeOfImage = AddItemToTree(hPEStruct, sOPTIONALHEADERSIZEOFIMAGE + GetStringFromDWORDHexAndDec(dwSizeOfImage) + sB, htiOptionalHeader);
+                                        htiOptionalHeaderSizeOfImage = AddItemToTree(hPEStruct, sOPTIONALHEADERSIZEOFIMAGE + GetStringFromDWORDHexAndDec(dwSizeOfImage), htiOptionalHeader);
                                     }
                                     else {
-                                        htiOptionalHeaderSizeOfImage = AddItemToTree(hPEStruct, sOPTIONALHEADERSIZEOFIMAGE + GetStringFromDWORDHexAndDec(dwSizeOfImage) + sB + sNOTAMULTIPLE + sOFSECTIONALIGNMENT, htiOptionalHeader, TRUE);
+                                        htiOptionalHeaderSizeOfImage = AddItemToTree(hPEStruct, sOPTIONALHEADERSIZEOFIMAGE + GetStringFromDWORDHexAndDec(dwSizeOfImage) + sNOTAMULTIPLE + sOFSECTIONALIGNMENT, htiOptionalHeader, TRUE);
                                     }
                                     DWORD dwSizeOfHeaders = GetDWORDFromPEFile(hPEFile);
                                     if (dwSizeOfHeaders % dwFileAlignment == 0) {
-                                        htiOptionalHeaderSizeOfHeaders = AddItemToTree(hPEStruct, sOPTIONALHEADERSIZEOFHEADERS + GetStringFromDWORDHexAndDec(dwSizeOfHeaders) + sB, htiOptionalHeader);
+                                        htiOptionalHeaderSizeOfHeaders = AddItemToTree(hPEStruct, sOPTIONALHEADERSIZEOFHEADERS + GetStringFromDWORDHexAndDec(dwSizeOfHeaders), htiOptionalHeader);
                                     }
                                     else {
-                                        htiOptionalHeaderSizeOfHeaders = AddItemToTree(hPEStruct, sOPTIONALHEADERSIZEOFHEADERS + GetStringFromDWORDHexAndDec(dwSizeOfHeaders) + sB + sNOTAMULTIPLE + sOFFILEALIGNMENT, htiOptionalHeader, TRUE);
+                                        htiOptionalHeaderSizeOfHeaders = AddItemToTree(hPEStruct, sOPTIONALHEADERSIZEOFHEADERS + GetStringFromDWORDHexAndDec(dwSizeOfHeaders) + sNOTAMULTIPLE + sOFFILEALIGNMENT, htiOptionalHeader, TRUE);
                                     }
                                     WORD wSubsystem = GetWORDFromPEFile(hPEFile, TRUE, 4);
                                     htiOptionalHeaderSubsystem = AddItemToTree(hPEStruct, sOPTIONALHEADERSUBSYSTEM + GetStringFromWORD(wSubsystem, TRUE, TRUE), htiOptionalHeader);
@@ -301,8 +301,41 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                                         htiOptionalHeaderNumberOfRvaAndSizes = AddItemToTree(hPEStruct, sOPTIONALHEADERNUMBEROFRVAANDSIZES + GetStringFromDWORD(NumberOfRvaAndSizes, TRUE, TRUE), htiOptionalHeader);
                                     }
                                     htiOptionalHeaderDataDirectory = AddItemToTree(hPEStruct, sOPTIONALHEADERDATADIRECTORY, htiOptionalHeader);
-                                    htiOptionalHeaderDataDirectoryVirtualAddress = AddItemToTree(hPEStruct, sOPTIONALHEADERDATADIRECTORYVIRTUALADDRESS + GetStringFromDWORD(NumberOfRvaAndSizes, TRUE, TRUE), htiOptionalHeader);
-                                    // На самом деле тут массив из 16 элементов, надо доделать
+                                    for (unsigned int i = 0; i < 16; i++) {
+                                        DWORD dwVirtualAddress = GetDWORDFromPEFile(hPEFile);
+                                        DWORD dwSize = GetDWORDFromPEFile(hPEFile);
+                                        if (((i == 8) && dwSize!=0) ||
+                                            ((i == 7 || i == 15) && dwVirtualAddress != 0 && dwSize != 0)) {
+                                            htiOptionalHeaderDataDirectorySections[i] = AddItemToTree(hPEStruct, "[" + std::to_string(i) + "]: " + sOPTIONALHEADERDATADIRECTORYSECTIONNAMES[i], htiOptionalHeaderDataDirectory, TRUE);
+                                        }
+                                        else {
+                                            htiOptionalHeaderDataDirectorySections[i] = AddItemToTree(hPEStruct, "[" + std::to_string(i) + "]: " + sOPTIONALHEADERDATADIRECTORYSECTIONNAMES[i], htiOptionalHeaderDataDirectory);
+                                        }
+                                        AddItemToTree(hPEStruct, sOPTIONALHEADERDATADIRECTORYVIRTUALADDRESS + GetStringFromDWORDHexAndDec(dwVirtualAddress), htiOptionalHeaderDataDirectorySections[i]);
+                                        AddItemToTree(hPEStruct, sOPTIONALHEADERDATADIRECTORYSIZE + GetStringFromDWORDHexAndDec(dwSize), htiOptionalHeaderDataDirectorySections[i]);
+                                        TreeView_Expand(hPEStruct, htiOptionalHeaderDataDirectorySections[i], TVE_EXPAND);
+                                        CreateCodeButton(hInst, hWnd, 450, 100 + 40 * i, 200, 30, sOPTIONALHEADERDATADIRECTORYSECTIONNAMES[i].c_str(), dwVirtualAddress, dwVirtualAddress + dwSize);
+                                    }
+                                    htiSectionHeader = AddItemToTree(hPEStruct, sSECTIONHEADER, NULL);
+                                    for (unsigned int i = 0; i < wNumberOfSections; i++) {
+                                        HTREEITEM htiSection = AddItemToTree(hPEStruct, "[" + std::to_string(i) + "]:", htiSectionHeader);
+                                        string sName = GetUTF8DWORDLONGFromPEFile(hPEFile);
+                                        AddItemToTree(hPEStruct, sSECTIONHEADERNAME + sName, htiSection);
+                                        //AddItemToTree(hPEStruct, sSECTIONHEADERPHYSICALADDRESS + GetStringFromDWORDHexAndDec(GetDWORDFromPEFile(hPEFile)), htiSection);
+                                        AddItemToTree(hPEStruct, sSECTIONHEADERVIRTUALSIZE + GetStringFromDWORDHexAndDec(GetDWORDFromPEFile(hPEFile)), htiSection);
+                                        AddItemToTree(hPEStruct, sSECTIONHEADERVIRTUALADDRESS + GetStringFromDWORDHexAndDec(GetDWORDFromPEFile(hPEFile)), htiSection);
+                                        DWORD dwSizeOfRawData = GetDWORDFromPEFile(hPEFile);
+                                        AddItemToTree(hPEStruct, sSECTIONHEADERSIZEOFRAWDATA + GetStringFromDWORDHexAndDec(dwSizeOfRawData), htiSection);
+                                        DWORD dwPointerToRawData = GetDWORDFromPEFile(hPEFile);
+                                        AddItemToTree(hPEStruct, sSECTIONHEADERPOINTERTORAWDATA + GetStringFromDWORDHexAndDec(dwPointerToRawData), htiSection);
+                                        AddItemToTree(hPEStruct, sSECTIONHEADERPOINTERTORELOCATIONS + GetStringFromDWORDHexAndDec(GetDWORDFromPEFile(hPEFile)), htiSection);
+                                        AddItemToTree(hPEStruct, sSECTIONHEADERPOINTERTOLINENUMBERS + GetStringFromDWORDHexAndDec(GetDWORDFromPEFile(hPEFile)), htiSection);
+                                        AddItemToTree(hPEStruct, sSECTIONHEADERNUMBEROFRELOCATIONS + GetStringFromWORDHexAndDec(GetWORDFromPEFile(hPEFile)), htiSection);
+                                        AddItemToTree(hPEStruct, sSECTIONHEADERNUMBEROFLINENUMBERS + GetStringFromWORDHexAndDec(GetWORDFromPEFile(hPEFile)), htiSection);
+                                        AddItemToTree(hPEStruct, sSECTIONHEADERCHARACTERISTICS + GetStringFromDWORD(GetDWORDFromPEFile(hPEFile), TRUE, TRUE), htiSection);
+                                        TreeView_Expand(hPEStruct, htiSection, TVE_EXPAND);
+                                        CreateCodeButton(hInst, hWnd, 700, 60 + 40*i, 120, 30, sName.c_str(), dwPointerToRawData, dwPointerToRawData + dwSizeOfRawData);
+                                    }
                                 }
                             }
                         }
@@ -313,13 +346,23 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         TreeView_Expand(hPEStruct, htiPE, TVE_EXPAND);
                         TreeView_Expand(hPEStruct, htiPEFileHeader, TVE_EXPAND);
                         TreeView_Expand(hPEStruct, htiOptionalHeader, TVE_EXPAND);
+                        TreeView_Expand(hPEStruct, htiOptionalHeaderDataDirectory, TVE_EXPAND);
+                        TreeView_Expand(hPEStruct, htiSectionHeader, TVE_EXPAND);
                         CloseHandle(hPEFile);
                     }
                     break;
                 }
-                case IDC_OPENDOSSTUB:
-                    InitCodeWnd(hInst, &hDOSStubCodeWnd, szDOSStubCodeTitle.c_str(), 0x3D, lAddressOfPE - 1);
+                case IDC_CLICKCODEBUTTON:
+                {
+                    size_t unCountOfCodeButtons = hCodeButtons.size();
+                    for (size_t i = 0; i < unCountOfCodeButtons; i++) {
+                        if ((HWND)lParam == hCodeButtons[i].hCodeButton) {
+                            InitCodeWnd(hInst, i);
+                        }
+                    }
+                    /*InitCodeWnd(hInst, &hDOSStubCodeWnd, szDOSStubCodeTitle.c_str(), 0x3D, lAddressOfPE - 1);*/
                     break;
+                }
                 default:
                     return DefWindowProc(hWnd, message, wParam, lParam);
             }
@@ -441,6 +484,13 @@ LONG GetLONGFromPEFile(HANDLE hPEFile, BOOL ReadFromCurrentPose, LONG lDistanceT
     LONG lData;
     ReadFile(hPEFile, &lData, 4, NULL, NULL);
     return lData;
+}
+
+string GetUTF8DWORDLONGFromPEFile(HANDLE hPEFile, BOOL ReadFromCurrentPose, LONG lDistanceToMove, PLONG lpDistanceToMoveHigh) {
+    SetFilePointer(hPEFile, lDistanceToMove, lpDistanceToMoveHigh, ReadFromCurrentPose);
+    char sData[9] = "";
+    ReadFile(hPEFile, sData, 8, NULL, NULL);
+    return sData;
 }
 
 string GetStringFromLONG(LONG lData, BOOL bToHex, BOOL bWriteWith0x) {
@@ -626,7 +676,7 @@ ATOM RegisterCodeWndClass(HINSTANCE hInstance)
     wcex.style = CS_HREDRAW | CS_VREDRAW;
     wcex.lpfnWndProc = CodeWndProc;
     wcex.cbClsExtra = 0;
-    wcex.cbWndExtra = 0;
+    wcex.cbWndExtra = sizeof(LONG);
     wcex.hInstance = hInstance;
     wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_PEREADER));
     wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
@@ -639,13 +689,39 @@ ATOM RegisterCodeWndClass(HINSTANCE hInstance)
     return RegisterClassEx(&wcex);
 }
 
-BOOL InitCodeWnd(HINSTANCE hInstance, HWND *hWnd, LPCTSTR lpWindowName, LONG lBegOfCode, LONG lEndOfCode) {
-    LONG laAdresses[2] = { lBegOfCode , lEndOfCode };
-    CREATESTRUCT csAdresses;
-    csAdresses.lpCreateParams = &laAdresses;
-    DestroyWindow(*hWnd);
-    *hWnd = CreateWindowA(szCodeWndClass.c_str(), lpWindowName, WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, 0, 970, 520, nullptr, nullptr, hInstance, &csAdresses);
+void CreateCodeButton(HINSTANCE hInstance, HWND hWndParent, int x, int y, int nWidth, int nHeight, string sTitle, LONG lBegOfCode, LONG lEndOfCode) {
+    size_t unIndexOfButton = hCodeButtons.size();
+  /*  CREATESTRUCT csIndexOfButton;
+    csIndexOfButton.lpCreateParams = &unIndexOfButton;*/
+    HWND hButton = CreateWindowA("button", sTitle.c_str(), WS_VISIBLE | WS_CHILD | ES_CENTER, x, y, nWidth, nHeight, hWndParent, (HMENU)IDC_CLICKCODEBUTTON, hInstance, NULL);
+    hCodeButtons.push_back(hCodeButton{
+        hButton,
+        NULL,
+        lBegOfCode,
+        lEndOfCode,
+        sTitle});
+    if (lBegOfCode == lEndOfCode) {
+        EnableWindow(hButton, FALSE);
+    }
+
+        //LONG laAdresses[2] = { lBegOfCode , lEndOfCode };
+        //CREATESTRUCT csAdresses;
+        //csAdresses.lpCreateParams = &laAdresses;
+    return;
+}
+
+BOOL InitCodeWnd(HINSTANCE hInstance, size_t unIndexOfButton) {
+    //LONG laAdresses[2] = { lBegOfCode , lEndOfCode };
+    //CREATESTRUCT csAdresses;
+    //csAdresses.lpCreateParams = &laAdresses;
+    CREATESTRUCT csIndexOfButton;
+    csIndexOfButton.lpCreateParams = &unIndexOfButton;
+    HWND *hWnd = &hCodeButtons[unIndexOfButton].hCodeWnd;
+    if (*hWnd) {
+        DestroyWindow(*hWnd);
+    }
+    *hWnd = CreateWindowA(szCodeWndClass.c_str(), hCodeButtons[unIndexOfButton].sTitle.c_str(), WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT, 0, 1200, 520, nullptr, nullptr, hInstance, &csIndexOfButton);
 
     if (!*hWnd)
     {
@@ -665,68 +741,19 @@ LRESULT CALLBACK CodeWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
     case WM_CREATE:
     {
         LPCREATESTRUCT create_struct = reinterpret_cast<LPCREATESTRUCT>(lParam);
-        LONG lBegOfCode = **(LONG**)(create_struct->lpCreateParams);
-        LONG lEndOfCode = *(*(LONG**)(create_struct->lpCreateParams)+1);
-        HWND hCodeTable = CreateWindowA(
-            WC_LISTVIEW,
-            "",
-            WS_VISIBLE | WS_CHILD | LVS_REPORT | WS_BORDER,
-            0, 0,
-            958,
-            480,
-            hWnd,
-            NULL,
-            hInst,
-            NULL);
-
-        LVCOLUMN lvc;
-        BYTE iCol;
-
-        lvc.mask = LVCF_FMT | LVCFMT_CENTER | LVCF_TEXT;
-        lvc.iSubItem = 0;
-        lvc.pszText = nullptr;
-        lvc.cx = 60;
-        lvc.fmt = LVCFMT_CENTER;
-        if (ListView_InsertColumn(hCodeTable, 0, &lvc) == -1)
-            return FALSE;
-        lvc.cx = 30;
-        lvc.mask += LVCF_SUBITEM;
-        for (BYTE i = 0; i < 2; i++) {
-            for (iCol = 1; iCol <= 16; iCol++)
-            {
-                char sHex[2] = { (iCol - 1 < 10) ? '0' + iCol - 1 : 'a' - 10 + iCol - 1, '\0' };
-                lvc.iSubItem = i*17 + iCol;
-                lvc.pszText = sHex;
-
-                if (ListView_InsertColumn(hCodeTable, i * 17 + iCol, &lvc) == -1)
-                    return FALSE;
-            }
-            if (i == 0){
-                lvc.iSubItem = 17;
-                lvc.pszText = nullptr;
-                if (ListView_InsertColumn(hCodeTable, 17, &lvc) == -1)
-                    return FALSE;
-                lvc.cx = 23;
-            }
-        }
-        int nNumberOfBytes = lEndOfCode - lBegOfCode;
-        int nByte = 0;
-        hPEFile = hOpenPEFile(hPEFileName);
-        SetFilePointer(hPEFile, lBegOfCode, NULL, 0);
-        for (int j = 0; j < 1 + int(ceil(nNumberOfBytes/16)); j++)
-        {
-            AddItemToTable(hCodeTable, GetStringFromLONG(lBegOfCode + j*16, TRUE), j, 0);
-            for (int i = 1; i < 17; i++) {
-                if (nByte > nNumberOfBytes) {
-                    break;
-                }
-                BYTE BBYTEFromPEFile = GetBYTEFromPEFile(hPEFile, TRUE, 0);
-                AddItemToTable(hCodeTable, GetStringFromBYTE(BBYTEFromPEFile, TRUE), j, i);
-                AddItemToTable(hCodeTable, GetUTF8FromBYTE(BBYTEFromPEFile), j, 17 + i);
-                nByte += 1;
-            }
-        }
-        CloseHandle(hPEFile);
+        size_t unIndexOfButton = **(size_t**)(create_struct->lpCreateParams);
+        SetWindowLong(hWnd, 0, (LONG)unIndexOfButton);
+        //LONG lBegOfCode = **(LONG**)(create_struct->lpCreateParams);
+        //LONG lEndOfCode = *(*(LONG**)(create_struct->lpCreateParams)+1);
+        DWORD lBegOfCode = hCodeButtons[unIndexOfButton].lBegOfCode;
+        DWORD lEndOfCode = hCodeButtons[unIndexOfButton].lEndOfCode;
+        HWND *hForwardButton = &hCodeButtons[unIndexOfButton].hForwardButton;
+        HWND* hBackButton = &hCodeButtons[unIndexOfButton].hBackButton;
+        DWORD* dwCountOfPages = &hCodeButtons[unIndexOfButton].dwCountOfPages;
+        *dwCountOfPages = DWORD(ceil(((lEndOfCode - lBegOfCode + 1)) / (16*nRowsOnPage))) + 1;
+        *hForwardButton = CreateWindowA("button", sFORWARD.c_str(), WS_VISIBLE | WS_CHILD | ES_CENTER, 1050, 50, 100, 30, hWnd, (HMENU)IDC_FORWARDBUTTON, hInst, NULL);
+        *hBackButton = CreateWindowA("button", sBACK.c_str(), WS_VISIBLE | WS_CHILD | ES_CENTER, 1050, 120, 100, 30, hWnd, (HMENU)IDC_BACKBUTTON, hInst, NULL);
+        OpenPage(hWnd, 0);
         break;
     }
     case WM_PAINT:
@@ -737,6 +764,30 @@ LRESULT CALLBACK CodeWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
         EndPaint(hWnd, &ps);
     }
     break;
+    case WM_COMMAND:
+    {
+        int wmId = LOWORD(wParam);
+        // Разобрать выбор в меню:
+        switch (wmId)
+        {
+        case IDC_FORWARDBUTTON:
+        {
+            size_t unIndexOfButton = (size_t)GetWindowLong(hWnd, 0);
+            LONG* dwPage = &hCodeButtons[unIndexOfButton].dwPage;
+            *dwPage += 1;
+            OpenPage(hWnd, *dwPage);
+            break;
+        }
+        case IDC_BACKBUTTON:
+        {
+            size_t unIndexOfButton = (size_t)GetWindowLong(hWnd, 0);
+            LONG* dwPage = &hCodeButtons[unIndexOfButton].dwPage;
+            *dwPage -= 1;
+            OpenPage(hWnd, *dwPage);
+            break;
+        }
+        }
+    }
     case WM_DESTROY:
         return 0;
         break;
@@ -746,8 +797,13 @@ LRESULT CALLBACK CodeWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
     return 0;
 }
 
-VOID DestroyCodeWindows() {
-    DestroyWindow(hDOSStubCodeWnd);
+VOID DestroyCodeWindowsAndButtons() {
+
+    for (unsigned int i = 0; i < hCodeButtons.size(); i++) {
+        DestroyWindow(hCodeButtons[i].hCodeWnd);
+        DestroyWindow(hCodeButtons[i].hCodeButton);
+    }
+    hCodeButtons.clear();
     return;
 }
 
@@ -771,4 +827,116 @@ VOID AddItemToTable(HWND hWnd, string sItem, int nLine, int nColumn)
 
 inline BOOL bIsPowerOfTwo(int nData) {
     return nData && !(nData & (nData - 1));
+}
+
+BOOL OpenPage(HWND hWnd, LONG dwPage) {
+    size_t unIndexOfButton = (size_t)GetWindowLong(hWnd, 0);
+    HWND* hCodeTable = &hCodeButtons[unIndexOfButton].hCodeTable;
+    LONG lBegOfCode = nRowsOnPage * dwPage * 16 + hCodeButtons[unIndexOfButton].lBegOfCode;
+    BOOL bBegOfCode = lBegOfCode - dwPage <= hCodeButtons[unIndexOfButton].lBegOfCode;
+    BOOL bEndOfCode = ((lBegOfCode + nRowsOnPage * 16) >= hCodeButtons[unIndexOfButton].lEndOfCode);
+    HWND* hForwardButton = &hCodeButtons[unIndexOfButton].hForwardButton;
+    HWND* hBackButton = &hCodeButtons[unIndexOfButton].hBackButton;
+    HWND* hCountOfPages = &hCodeButtons[unIndexOfButton].hCountOfPages;
+    *hCountOfPages = CreateWindowEx(0, "STATIC", (std::to_string(dwPage + 1) + " / " + std::to_string(hCodeButtons[unIndexOfButton].dwCountOfPages)).c_str(), WS_CHILD | WS_VISIBLE, 1050, 90, 100, 15, hWnd, 0, hInst, NULL);
+    if (bBegOfCode) {
+        EnableWindow(*hBackButton, FALSE);
+    }
+    else {
+        EnableWindow(*hBackButton, TRUE);
+    }
+    if (bEndOfCode) {
+        EnableWindow(*hForwardButton, FALSE);
+    }
+    else {
+        EnableWindow(*hForwardButton, TRUE);
+    }
+    LONG lEndOfCode = bEndOfCode ? hCodeButtons[unIndexOfButton].lEndOfCode : lBegOfCode + nRowsOnPage*16 - 1;
+    DestroyWindow(*hCodeTable);
+    *hCodeTable = CreateWindowA(
+        WC_LISTVIEW,
+        "",
+        WS_VISIBLE | WS_CHILD | LVS_REPORT | WS_BORDER,
+        0, 0,
+        1035,
+        480,
+        hWnd,
+        NULL,
+        hInst,
+        NULL);
+
+    LVCOLUMN lvc;
+    BYTE iCol;
+
+    lvc.mask = LVCF_FMT | LVCFMT_CENTER | LVCF_TEXT;
+    lvc.iSubItem = 0;
+    lvc.pszText = nullptr;
+    lvc.cx = 60;
+    lvc.fmt = LVCFMT_CENTER;
+    if (ListView_InsertColumn(*hCodeTable, 0, &lvc) == -1)
+        return FALSE;
+    lvc.cx = 30;
+    lvc.mask += LVCF_SUBITEM;
+    for (BYTE i = 0; i < 2; i++) {
+        for (iCol = 1; iCol <= 16; iCol++)
+        {
+            char sHex[2] = { (iCol - 1 < 10) ? '0' + iCol - 1 : 'a' - 10 + iCol - 1, '\0' };
+            lvc.iSubItem = i * 17 + iCol;
+            lvc.pszText = sHex;
+
+            if (ListView_InsertColumn(*hCodeTable, i * 17 + iCol, &lvc) == -1)
+                return FALSE;
+        }
+        if (i == 0) {
+            lvc.iSubItem = 17;
+            lvc.pszText = nullptr;
+            if (ListView_InsertColumn(*hCodeTable, 17, &lvc) == -1)
+                return FALSE;
+            lvc.cx = 28;
+        }
+    }
+    BYTE nTailOfBytes = lBegOfCode % 16;
+    if (nTailOfBytes != 0) {
+        AddItemToTable(*hCodeTable, GetStringFromLONG(lBegOfCode - nTailOfBytes, TRUE), 0, 0);
+        for (BYTE i = 1; i < nTailOfBytes; i++) {
+            AddItemToTable(*hCodeTable, "", 1, i);
+            AddItemToTable(*hCodeTable, "", 1, 17 + i);
+        }
+    }
+    //LONG nNumberOfBytes = lEndOfCode - lBegOfCode;
+    LONG nByte = lBegOfCode;
+    BYTE nColumn = 1 + nTailOfBytes;
+    LONG lRow = 0;
+    hPEFile = hOpenPEFile(hPEFileName);
+    SetFilePointer(hPEFile, lBegOfCode, NULL, 0);
+    while (nByte <= lEndOfCode) {
+        if (nColumn == 1) {
+            AddItemToTable(*hCodeTable, GetStringFromLONG(nByte, TRUE), lRow, 0);
+        }
+        BYTE BBYTEFromPEFile = GetBYTEFromPEFile(hPEFile, TRUE, 0);
+        AddItemToTable(*hCodeTable, GetStringFromBYTE(BBYTEFromPEFile, TRUE), lRow, nColumn);
+        AddItemToTable(*hCodeTable, GetUTF8FromBYTE(BBYTEFromPEFile), lRow, 17 + nColumn);
+        nColumn += 1;
+        if (nColumn == 17) {
+            nColumn = 1;
+            lRow++;
+        }
+        nByte++;
+    }
+    //DWORD nNumberOfRows = DWORD(ceil(nNumberOfBytes / 16));
+    //for (DWORD i = 0; i < nNumberOfRows; i++)
+    //{
+    //    AddItemToTable(*hCodeTable, GetStringFromLONG(lBegOfCode + i * 16, TRUE), i, 0);
+    //    for (DWORD j = 1; j < 17; i++) {
+    //        if (nByte == nNumberOfBytes) {
+    //            break;
+    //        }
+    //        BYTE BBYTEFromPEFile = GetBYTEFromPEFile(hPEFile, TRUE, 0);
+    //        AddItemToTable(*hCodeTable, GetStringFromBYTE(BBYTEFromPEFile, TRUE), i, j);
+    //        AddItemToTable(*hCodeTable, GetUTF8FromBYTE(BBYTEFromPEFile), i, 17 + j);
+    //        nByte += 1;
+    //    }
+    //}
+    CloseHandle(hPEFile);
+    return TRUE;
 }
