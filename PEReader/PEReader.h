@@ -88,7 +88,7 @@ const string sBACK = "Back";
 
 const string szCodeWndClass = "CODEWND";
 
-struct hCodeButton {
+struct structCodeButton {
 	HWND hCodeButton;
 	HWND hCodeWnd;
 	LONG lBegOfCode;
@@ -102,7 +102,7 @@ struct hCodeButton {
 	HWND hCountOfPages = NULL;
 };
 
-std::vector<hCodeButton> hCodeButtons;
+std::vector<structCodeButton> hCodeButtons;
 
 LONG nRowsOnPage = 300;
 HWND hPEFileName;

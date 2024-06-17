@@ -664,7 +664,7 @@ void CreateCodeButton(HINSTANCE hInstance, HWND hWndParent, int x, int y, int nW
   /*  CREATESTRUCT csIndexOfButton;
     csIndexOfButton.lpCreateParams = &unIndexOfButton;*/
     HWND hButton = CreateWindowA("button", sTitle.c_str(), WS_VISIBLE | WS_CHILD | ES_CENTER, x, y, nWidth, nHeight, hWndParent, (HMENU)IDC_CLICKCODEBUTTON, hInstance, NULL);
-    hCodeButtons.push_back(hCodeButton{
+    hCodeButtons.push_back(structCodeButton{
         hButton,
         NULL,
         lBegOfCode,
